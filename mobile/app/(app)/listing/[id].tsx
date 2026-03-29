@@ -89,10 +89,21 @@ export default function ListingDetailScreen() {
     else invalidate()
   }
 
-  const handleRemove = () => {
+  const handleRemove = async () => {
+    // Check for active orders on this listing before deleting
+    const { count } = await supabase
+      .from('orders')
+      .select('id', { count: 'exact', head: true })
+      .eq('listing_id', listing.id)
+      .in('status', ['pending_payment', 'pending', 'received', 'preparing'])
+
+    const hasActiveOrders = (count ?? 0) > 0
+
     Alert.alert(
       'Remove listing',
-      'This will permanently delete the listing. This cannot be undone.',
+      hasActiveOrders
+        ? `This listing has ${count} active order${count !== 1 ? 's' : ''}. Removing it will not cancel those orders. Continue?`
+        : 'This will permanently delete the listing. This cannot be undone.',
       [
         { text: 'Cancel', style: 'cancel' },
         {

@@ -94,7 +94,7 @@ export default function EditListingScreen() {
       : await ImagePicker.requestMediaLibraryPermissionsAsync()
 
     if (!permission.granted) {
-      Alert.alert('Permission required', `Allow Gula to access your ${source === 'camera' ? 'camera' : 'photos'}.`)
+      Alert.alert('Permission required', `Allow gula. to access your ${source === 'camera' ? 'camera' : 'photos'}.`)
       return
     }
 
@@ -169,8 +169,16 @@ export default function EditListingScreen() {
     if (!validate() || !listing) return
     setSaving(true)
 
-    const finalImages = images.map(img => img.kind === 'remote' ? img.url : '')
-      .filter(Boolean)
+    // Upload any newly picked local images first
+    const finalImages: string[] = []
+    for (const img of images) {
+      if (img.kind === 'remote') {
+        finalImages.push(img.url)
+      } else {
+        const uploaded = await uploadImage(img.uri)
+        if (uploaded) finalImages.push(uploaded)
+      }
+    }
 
     const { error } = await supabase
       .from('listings')

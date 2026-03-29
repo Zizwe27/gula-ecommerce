@@ -1,6 +1,9 @@
 # Dependencies
 node_modules/
 
+# Stray lockfile at repo root (Expo app lives in mobile/)
+/package-lock.json
+
 # Environment (secrets) — do not ignore .env.example
 .env
 .env.local

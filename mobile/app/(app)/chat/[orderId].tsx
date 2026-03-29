@@ -33,9 +33,17 @@ export default function ChatScreen() {
   const handleSend = () => {
     const body = text.trim()
     if (!body || !conversation || !profile) return
+    const recipientId =
+      profile.id === conversation.buyer_id ? conversation.seller_id : conversation.buyer_id
     setText('')
     sendMessage(
-      { conversationId: conversation.id, senderId: profile.id, body },
+      {
+        conversationId: conversation.id,
+        senderId: profile.id,
+        body,
+        recipientId,
+        senderName: profile.display_name ?? 'Someone',
+      },
       { onSuccess: () => listRef.current?.scrollToEnd({ animated: true }) }
     )
   }

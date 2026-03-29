@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
+import { sendPushNotification } from '@/lib/notifications'
 
 export type Message = {
   id: string
@@ -86,15 +87,27 @@ export function useSendMessage() {
       conversationId,
       senderId,
       body,
+      recipientId,
+      senderName,
     }: {
       conversationId: string
       senderId: string
       body: string
+      recipientId: string
+      senderName: string
     }) => {
       const { error } = await supabase
         .from('messages')
         .insert({ conversation_id: conversationId, sender_id: senderId, body })
       if (error) throw error
+      return { recipientId, senderName, body }
+    },
+    onSuccess: ({ recipientId, senderName, body }) => {
+      sendPushNotification({
+        recipientId,
+        title: senderName,
+        body,
+      })
     },
   })
 }

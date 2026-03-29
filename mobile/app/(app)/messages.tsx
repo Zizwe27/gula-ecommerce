@@ -12,31 +12,11 @@ import { router } from 'expo-router'
 import { Feather } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useAuthStore } from '@/stores/auth'
-import { useNotifications, OrderNotification } from '@/hooks/useNotifications'
+import { useNotifications, NotificationThread } from '@/hooks/useNotifications'
 import { Colors } from '@/constants/colors'
 import { Fonts, Type } from '@/constants/typography'
 
-const ORDER_STATUS_LABEL: Record<string, string> = {
-  pending_payment: 'Awaiting payment',
-  pending:         'Order placed',
-  received:        'Seller confirmed receipt',
-  preparing:       'Order being prepared',
-  delivered:       'Out for delivery',
-  completed:       'Order completed',
-  cancelled:       'Order cancelled',
-}
-
-const ORDER_STATUS_COLOR: Record<string, string> = {
-  pending_payment: Colors.warning,
-  pending:         Colors.warning,
-  received:        Colors.textSecondary,
-  preparing:       Colors.textSecondary,
-  delivered:       Colors.success,
-  completed:       Colors.success,
-  cancelled:       Colors.error,
-}
-
-export default function NotificationsScreen() {
+export default function MessagesScreen() {
   const { profile, notificationSeenAt, markNotificationsSeen } = useAuthStore()
   const insets = useSafeAreaInsets()
   const { data, isLoading, refetch, isRefetching } = useNotifications(
@@ -44,12 +24,12 @@ export default function NotificationsScreen() {
     notificationSeenAt
   )
 
-  // Mark all as seen when this screen opens
+  // Mark messages as seen when this screen opens
   useEffect(() => {
     markNotificationsSeen()
   }, [])
 
-  const orderUpdates = data?.orderUpdates ?? []
+  const threads = data?.threads ?? []
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -59,7 +39,7 @@ export default function NotificationsScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} activeOpacity={0.7}>
           <Feather name="arrow-left" size={22} color={Colors.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.heading}>Activity</Text>
+        <Text style={styles.heading}>Messages</Text>
         <View style={styles.backBtn} />
       </View>
 
@@ -67,56 +47,82 @@ export default function NotificationsScreen() {
         <View style={styles.centered}>
           <ActivityIndicator color={Colors.black} />
         </View>
-      ) : orderUpdates.length === 0 ? (
+      ) : threads.length === 0 ? (
         <View style={styles.empty}>
-          <Feather name="bell" size={44} color={Colors.gray300} />
-          <Text style={styles.emptyTitle}>All caught up</Text>
+          <Feather name="mail" size={44} color={Colors.gray300} />
+          <Text style={styles.emptyTitle}>No messages yet</Text>
           <Text style={styles.emptyBody}>
-            Order updates will appear here.
+            When you place or receive an order, you can chat with the other party here.
           </Text>
         </View>
       ) : (
         <FlatList
-          data={orderUpdates}
-          keyExtractor={(item) => item.orderId}
+          data={threads}
+          keyExtractor={(item) => item.conversationId}
           onRefresh={refetch}
           refreshing={isRefetching}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 40 + insets.bottom }}
+          contentContainerStyle={{ paddingBottom: 32 + insets.bottom }}
           ItemSeparatorComponent={() => <View style={styles.separator} />}
-          renderItem={({ item }) => <OrderRow item={item} />}
+          renderItem={({ item }) => (
+            <ThreadRow
+              item={item}
+              userId={profile?.id}
+              seenAt={notificationSeenAt}
+            />
+          )}
         />
       )}
     </View>
   )
 }
 
+function ThreadRow({
+  item,
+  userId,
+  seenAt,
+}: {
+  item: NotificationThread
+  userId?: string
+  seenAt: number
+}) {
+  const isUnread =
+    item.lastSenderId !== userId &&
+    new Date(item.lastMessageAt).getTime() > (seenAt > 0 ? seenAt : Date.now() - 48 * 3600 * 1000)
 
-function OrderRow({ item }: { item: OrderNotification }) {
-  const statusColor = ORDER_STATUS_COLOR[item.status] ?? Colors.textSecondary
-  const statusLabel = ORDER_STATUS_LABEL[item.status] ?? item.status
+  const isMe = item.lastSenderId === userId
 
   return (
     <TouchableOpacity
       style={styles.row}
-      onPress={() => router.push(`/(app)/order/${item.orderId}`)}
+      onPress={() => router.push(`/(app)/chat/${item.orderId}`)}
       activeOpacity={0.75}
     >
-      <View style={styles.orderIconWrap}>
-        <Feather name="box" size={20} color={Colors.textSecondary} />
+      <View style={[styles.avatar, isUnread && styles.avatarUnread]}>
+        <Text style={styles.avatarText}>
+          {item.otherPartyName[0]?.toUpperCase() ?? '?'}
+        </Text>
       </View>
 
       <View style={styles.rowBody}>
         <View style={styles.rowTop}>
-          <Text style={styles.rowName} numberOfLines={1}>
-            {item.listingTitle ?? 'Order update'}
+          <Text style={[styles.rowName, isUnread && styles.rowNameUnread]} numberOfLines={1}>
+            {item.otherPartyName}
           </Text>
-          <Text style={styles.rowTime}>{formatTime(item.updatedAt)}</Text>
+          <Text style={styles.rowTime}>{formatTime(item.lastMessageAt)}</Text>
         </View>
-        <Text style={[styles.orderStatus, { color: statusColor }]}>
-          {statusLabel}
+        {item.listingTitle ? (
+          <Text style={styles.rowSub} numberOfLines={1}>Re: {item.listingTitle}</Text>
+        ) : null}
+        <Text
+          style={[styles.rowPreview, isUnread && styles.rowPreviewUnread]}
+          numberOfLines={1}
+        >
+          {isMe ? `You: ${item.lastMessage}` : item.lastMessage}
         </Text>
       </View>
+
+      {isUnread && <View style={styles.unreadDot} />}
     </TouchableOpacity>
   )
 }
@@ -161,26 +167,35 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.white,
   },
 
-  rowBody: { flex: 1, gap: 2 },
-  rowTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  rowName: { ...Type.labelLg, color: Colors.textPrimary, fontFamily: Fonts.medium, flex: 1 },
-  rowTime: { ...Type.caption, color: Colors.textDisabled, marginLeft: 8 },
-
-  // Order row
-  orderIconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: Colors.gray100,
+  avatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: Colors.gray200,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: Colors.border,
     flexShrink: 0,
   },
-  orderStatus: { ...Type.bodyMd, fontFamily: Fonts.medium },
+  avatarUnread: { backgroundColor: Colors.black },
+  avatarText: { fontFamily: Fonts.bold, fontSize: 17, color: Colors.white },
 
-  // Empty state
+  rowBody: { flex: 1, gap: 2 },
+  rowTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  rowName: { ...Type.labelLg, color: Colors.textSecondary, fontFamily: Fonts.regular, flex: 1 },
+  rowNameUnread: { color: Colors.textPrimary, fontFamily: Fonts.bold },
+  rowTime: { ...Type.caption, color: Colors.textDisabled, marginLeft: 8 },
+  rowSub: { ...Type.caption, color: Colors.textDisabled },
+  rowPreview: { ...Type.bodyMd, color: Colors.textSecondary },
+  rowPreviewUnread: { color: Colors.textPrimary, fontFamily: Fonts.medium },
+
+  unreadDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: Colors.black,
+    flexShrink: 0,
+  },
+
   empty: {
     flex: 1,
     alignItems: 'center',
@@ -189,7 +204,6 @@ const styles = StyleSheet.create({
     gap: 10,
     marginTop: -60,
   },
-  emptyIcon: { marginBottom: 4 },
   emptyTitle: { ...Type.h3, color: Colors.textPrimary },
   emptyBody: { ...Type.bodyMd, color: Colors.textSecondary, textAlign: 'center', lineHeight: 22 },
 })

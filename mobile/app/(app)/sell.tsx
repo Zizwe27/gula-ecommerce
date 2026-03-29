@@ -94,7 +94,7 @@ function ApplicationPending() {
         </Text>
         <View style={styles.pendingNote}>
           <Text style={styles.pendingNoteText}>
-            While you wait, you can still browse and buy on Gula.
+            While you wait, you can still browse and buy on gula.
           </Text>
         </View>
       </View>

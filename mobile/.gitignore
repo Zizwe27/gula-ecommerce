@@ -9,6 +9,9 @@ dist/
 web-build/
 expo-env.d.ts
 
+# EAS (local credential exports; prefer EAS-managed credentials)
+credentials.json
+
 # Native
 .kotlin/
 *.orig.*

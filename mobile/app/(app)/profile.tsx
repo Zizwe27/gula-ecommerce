@@ -7,6 +7,8 @@ import {
   StatusBar,
 } from 'react-native'
 import { router } from 'expo-router'
+import { Feather } from '@expo/vector-icons'
+import { Image } from 'expo-image'
 import { useAuthStore } from '@/stores/auth'
 import { NotificationBell } from '@/components/ui/NotificationBell'
 import { Colors } from '@/constants/colors'
@@ -76,11 +78,21 @@ export default function ProfileScreen() {
       )}
 
       {/* Identity card */}
-      <View style={styles.card}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarInitial}>
-            {profile?.display_name?.[0]?.toUpperCase() ?? '?'}
-          </Text>
+      <TouchableOpacity
+        style={styles.card}
+        onPress={() => router.push('/(app)/edit-profile')}
+        activeOpacity={0.85}
+      >
+        <View style={styles.avatarWrap}>
+          {profile?.avatar_url ? (
+            <Image source={{ uri: profile.avatar_url }} style={styles.avatarImg} contentFit="cover" />
+          ) : (
+            <View style={styles.avatar}>
+              <Text style={styles.avatarInitial}>
+                {profile?.display_name?.[0]?.toUpperCase() ?? '?'}
+              </Text>
+            </View>
+          )}
         </View>
         <View style={styles.cardInfo}>
           <Text style={styles.name}>{profile?.display_name}</Text>
@@ -89,26 +101,58 @@ export default function ProfileScreen() {
             <Text style={styles.location}>{profile.location}</Text>
           ) : null}
         </View>
-      </View>
+        <Feather name="edit-2" size={16} color={Colors.gray400} />
+      </TouchableOpacity>
 
-      {/* Seller status badge */}
-      {profile?.seller_status ? (
-        <View style={[
-          styles.statusBadge,
-          { borderColor: sellerStatusColor[profile.seller_status] }
-        ]}>
-          <View style={[
-            styles.statusDot,
-            { backgroundColor: sellerStatusColor[profile.seller_status] }
-          ]} />
-          <Text style={[
-            styles.statusText,
-            { color: sellerStatusColor[profile.seller_status] }
-          ]}>
-            {sellerStatusLabel[profile.seller_status]}
-          </Text>
+      {/* Seller status badge — approved sellers */}
+      {profile?.seller_status === 'approved' && (
+        <View style={[styles.statusBadge, { borderColor: Colors.success }]}>
+          <View style={[styles.statusDot, { backgroundColor: Colors.success }]} />
+          <Text style={[styles.statusText, { color: Colors.success }]}>Verified seller</Text>
         </View>
-      ) : null}
+      )}
+
+      {/* Seller CTA — not yet applied */}
+      {!profile?.seller_status && (
+        <TouchableOpacity
+          style={styles.sellerCta}
+          onPress={() => router.push('/(app)/seller-apply')}
+          activeOpacity={0.85}
+        >
+          <View style={styles.sellerCtaLeft}>
+            <Text style={styles.sellerCtaTitle}>Start selling on gula.</Text>
+            <Text style={styles.sellerCtaBody}>List your products and reach buyers across Zambia.</Text>
+          </View>
+          <View style={styles.sellerCtaBtn}>
+            <Text style={styles.sellerCtaBtnText}>Apply</Text>
+          </View>
+        </TouchableOpacity>
+      )}
+
+      {/* Seller CTA — pending */}
+      {profile?.seller_status === 'pending' && (
+        <View style={[styles.statusBadge, { borderColor: Colors.warning }]}>
+          <Feather name="clock" size={14} color={Colors.warning} style={{ marginRight: 2 }} />
+          <Text style={[styles.statusText, { color: Colors.warning }]}>Application under review</Text>
+        </View>
+      )}
+
+      {/* Seller CTA — rejected, allow re-apply */}
+      {profile?.seller_status === 'rejected' && (
+        <TouchableOpacity
+          style={[styles.sellerCta, styles.sellerCtaRejected]}
+          onPress={() => router.push('/(app)/seller-apply')}
+          activeOpacity={0.85}
+        >
+          <View style={styles.sellerCtaLeft}>
+            <Text style={[styles.sellerCtaTitle, { color: Colors.error }]}>Application not approved</Text>
+            <Text style={styles.sellerCtaBody}>You can submit a new application.</Text>
+          </View>
+          <View style={[styles.sellerCtaBtn, { backgroundColor: Colors.error }]}>
+            <Text style={styles.sellerCtaBtnText}>Apply again</Text>
+          </View>
+        </TouchableOpacity>
+      )}
 
       {/* Actions */}
       <View style={styles.actions}>
@@ -125,6 +169,19 @@ export default function ProfileScreen() {
           <Text style={styles.actionLabel}>Help & support</Text>
           <Text style={styles.actionChevron}>›</Text>
         </TouchableOpacity>
+        {profile?.is_admin && (
+          <>
+            <View style={styles.separator} />
+            <TouchableOpacity
+              style={styles.actionRow}
+              onPress={() => router.push('/(app)/admin')}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.actionLabel, styles.adminLabel]}>Seller applications</Text>
+              <Text style={styles.actionChevron}>›</Text>
+            </TouchableOpacity>
+          </>
+        )}
       </View>
 
       <TouchableOpacity
@@ -206,6 +263,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border,
   },
+  avatarWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    overflow: 'hidden',
+  },
+  avatarImg: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+  },
   avatar: {
     width: 56,
     height: 56,
@@ -254,6 +322,44 @@ const styles = StyleSheet.create({
     ...Type.labelMd,
     fontFamily: Fonts.medium,
   },
+
+  // Seller CTA card
+  sellerCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    backgroundColor: Colors.black,
+    borderRadius: 16,
+    padding: 18,
+  },
+  sellerCtaRejected: {
+    backgroundColor: Colors.errorLight,
+  },
+  sellerCtaLeft: {
+    flex: 1,
+    gap: 3,
+  },
+  sellerCtaTitle: {
+    fontFamily: Fonts.bold,
+    fontSize: 15,
+    color: Colors.white,
+  },
+  sellerCtaBody: {
+    ...Type.bodySm,
+    color: 'rgba(255,255,255,0.65)',
+    lineHeight: 18,
+  },
+  sellerCtaBtn: {
+    backgroundColor: Colors.white,
+    borderRadius: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+  },
+  sellerCtaBtnText: {
+    fontFamily: Fonts.bold,
+    fontSize: 13,
+    color: Colors.black,
+  },
   actions: {
     backgroundColor: Colors.white,
     borderRadius: 16,
@@ -282,6 +388,10 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: Colors.border,
     marginHorizontal: 20,
+  },
+  adminLabel: {
+    color: Colors.textPrimary,
+    fontFamily: Fonts.medium,
   },
   signOut: {
     borderWidth: 1.5,

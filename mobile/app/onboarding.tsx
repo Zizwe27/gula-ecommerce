@@ -70,7 +70,7 @@ export default function OnboardingScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.wordmark}>gula</Text>
+          <Text style={styles.wordmark}>gula.</Text>
           <Text style={styles.title}>Let's set up{'\n'}your account</Text>
           <Text style={styles.subtitle}>This takes less than a minute.</Text>
         </View>

@@ -70,7 +70,7 @@ export default function SellerApplyScreen() {
     if (!permission.granted) {
       Alert.alert(
         'Permission required',
-        `Please allow Gula to access your ${source === 'camera' ? 'camera' : 'photo library'}.`
+        `Please allow gula. to access your ${source === 'camera' ? 'camera' : 'photo library'}.`
       )
       return
     }

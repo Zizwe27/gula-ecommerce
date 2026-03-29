@@ -6,19 +6,19 @@ import { useNotifications } from '@/hooks/useNotifications'
 import { Colors } from '@/constants/colors'
 import { Fonts } from '@/constants/typography'
 
-export function NotificationBell() {
+export function MessagesIcon() {
   const { profile, notificationSeenAt } = useAuthStore()
   const { data } = useNotifications(profile?.id, notificationSeenAt)
 
-  const count = data?.unreadOrderCount ?? 0
+  const count = data?.unreadMessageCount ?? 0
 
   return (
     <TouchableOpacity
       style={styles.btn}
-      onPress={() => router.push('/(app)/notifications')}
+      onPress={() => router.push('/(app)/messages')}
       activeOpacity={0.7}
     >
-      <Feather name="bell" size={22} color={Colors.textPrimary} />
+      <Feather name="mail" size={22} color={Colors.textPrimary} />
       {count > 0 && (
         <View style={styles.badge}>
           <Text style={styles.badgeText}>{count > 9 ? '9+' : count}</Text>

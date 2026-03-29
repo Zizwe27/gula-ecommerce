@@ -24,6 +24,8 @@ export type NotificationsData = {
   threads: NotificationThread[]
   orderUpdates: OrderNotification[]
   unreadCount: number
+  unreadMessageCount: number
+  unreadOrderCount: number
 }
 
 export function useNotifications(
@@ -31,7 +33,7 @@ export function useNotifications(
   seenAt: number
 ) {
   return useQuery({
-    queryKey: ['notifications', userId],
+    queryKey: ['notifications', userId, seenAt],
     queryFn: async (): Promise<NotificationsData> => {
       // ── 1. Conversations + participants ──────────────────────
       const { data: conversations, error: convErr } = await supabase
@@ -46,7 +48,9 @@ export function useNotifications(
 
       if (convErr) throw convErr
       if (!conversations?.length) {
-        return await buildOrderUpdates(userId!, [])
+        const cutoff = seenAt > 0 ? seenAt : Date.now() - 48 * 60 * 60 * 1000
+        const { orderUpdates, unreadOrders } = await buildOrderUpdates(userId!, cutoff)
+        return { threads: [], orderUpdates, unreadCount: unreadOrders, unreadMessageCount: 0, unreadOrderCount: unreadOrders }
       }
 
       const convIds = conversations.map(c => c.id)
@@ -110,6 +114,8 @@ export function useNotifications(
         threads,
         orderUpdates,
         unreadCount: unreadMessages + unreadOrders,
+        unreadMessageCount: unreadMessages,
+        unreadOrderCount: unreadOrders,
       }
     },
     enabled: !!userId,

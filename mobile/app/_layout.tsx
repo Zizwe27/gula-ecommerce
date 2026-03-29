@@ -13,6 +13,7 @@ import {
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/auth'
+import { usePushToken } from '@/hooks/usePushToken'
 
 SplashScreen.preventAutoHideAsync()
 
@@ -45,6 +46,12 @@ export default function RootLayout() {
     // Keep session and profile in sync on auth events
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        // Treat token refresh failure as a sign-out
+        if (event === 'TOKEN_REFRESH_FAILED' || event === 'SIGNED_OUT') {
+          setSession(null)
+          setProfile(null)
+          return
+        }
         setSession(session)
         if (session?.user) {
           await fetchProfile(session.user.id)
@@ -62,6 +69,10 @@ export default function RootLayout() {
   }, [fontsLoaded])
 
   const { initialized } = useAuthStore()
+
+  // Register push notification token once logged in
+  usePushToken()
+
   if (!fontsLoaded || !initialized) {
     return (
       <View style={styles.splash}>

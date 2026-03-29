@@ -24,6 +24,8 @@ create table profiles (
   onboarded     boolean not null default false,
   seller_status text check (seller_status in ('pending', 'approved', 'rejected')),
   shop_name     text,       -- set when seller application is approved
+  push_token    text,       -- Expo push token, updated on each app launch
+  is_admin      boolean not null default false,
   created_at    timestamptz not null default now(),
   updated_at    timestamptz not null default now()
 );
@@ -363,7 +365,7 @@ create policy "listings: authenticated can read active"
   to authenticated
   using (status = 'active' or seller_id = auth.uid());
 
--- Only sellers can create listings
+-- Only approved sellers can create listings
 create policy "listings: seller can insert"
   on listings for insert
   to authenticated
@@ -371,7 +373,7 @@ create policy "listings: seller can insert"
     auth.uid() = seller_id
     and exists (
       select 1 from profiles
-      where id = auth.uid() and role in ('seller', 'both')
+      where id = auth.uid() and seller_status = 'approved'
     )
   );
 
@@ -481,9 +483,116 @@ alter publication supabase_realtime add table orders;
 
 
 -- =============================================================
--- STORAGE BUCKETS
--- Run this via Supabase dashboard or Storage API, not SQL.
--- Bucket: "listings"   — public read, authenticated write
--- Bucket: "avatars"    — public read, authenticated write
--- Max file size: 5MB. Allowed types: image/jpeg, image/png, image/webp
+-- STOCK RESERVATION
 -- =============================================================
+create or replace function reserve_listing_stock()
+returns trigger language plpgsql security definer set search_path = public as $$
+declare
+  v_stock integer; v_status text;
+begin
+  select stock_qty, status into v_stock, v_status from listings where id = new.listing_id for update;
+  if not found then raise exception 'Listing not found'; end if;
+  if v_status != 'active' then raise exception 'This listing is no longer available'; end if;
+  if v_stock < new.qty then raise exception 'Only % item(s) left in stock', v_stock; end if;
+  update listings set stock_qty = stock_qty - new.qty,
+    status = case when stock_qty - new.qty = 0 then 'sold' else status end
+  where id = new.listing_id;
+  return new;
+end;
+$$;
+
+create trigger on_order_insert_reserve_stock
+  after insert on orders for each row execute procedure reserve_listing_stock();
+
+
+-- =============================================================
+-- ORDER STATUS TRANSITION VALIDATION
+-- =============================================================
+create or replace function validate_order_status_transition()
+returns trigger language plpgsql as $$
+begin
+  if new.status = old.status then return new; end if;
+  if old.status = 'pending_payment' and new.status in ('pending','cancelled')   then return new; end if;
+  if old.status = 'pending'         and new.status in ('received','cancelled')  then return new; end if;
+  if old.status = 'received'        and new.status = 'preparing'                then return new; end if;
+  if old.status = 'preparing'       and new.status = 'delivered'                then return new; end if;
+  if old.status = 'delivered'       and new.status = 'completed'                then return new; end if;
+  raise exception 'Invalid order status transition: % → %', old.status, new.status;
+end;
+$$;
+
+create trigger aa_validate_order_transition
+  before update on orders for each row
+  when (old.status is distinct from new.status)
+  execute procedure validate_order_status_transition();
+
+
+-- =============================================================
+-- SELLER ROLE SYNC
+-- Auto-update profiles.role when seller_status → 'approved'
+-- =============================================================
+create or replace function sync_seller_role()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  if new.seller_status = 'approved' and (old.seller_status is distinct from 'approved') then
+    new.role := case when old.role = 'buyer' then 'seller' else 'both' end;
+  end if;
+  return new;
+end;
+$$;
+
+create trigger on_seller_approved
+  before update on profiles
+  for each row execute procedure sync_seller_role();
+
+
+-- =============================================================
+-- STORAGE BUCKETS + POLICIES
+-- =============================================================
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values
+  ('listings', 'listings', true,  5242880, array['image/jpeg','image/png','image/webp']),
+  ('avatars',  'avatars',  true,  5242880, array['image/jpeg','image/png','image/webp'])
+on conflict (id) do nothing;
+
+-- listings bucket
+create policy "listings-bucket: public read"
+  on storage.objects for select using (bucket_id = 'listings');
+
+create policy "listings-bucket: seller can upload"
+  on storage.objects for insert to authenticated
+  with check (
+    bucket_id = 'listings'
+    and auth.uid()::text = (storage.foldername(name))[1]
+    and exists (select 1 from profiles where id = auth.uid() and seller_status = 'approved')
+  );
+
+create policy "listings-bucket: seller can update"
+  on storage.objects for update to authenticated
+  using (bucket_id = 'listings' and auth.uid()::text = (storage.foldername(name))[1]);
+
+create policy "listings-bucket: seller can delete"
+  on storage.objects for delete to authenticated
+  using (bucket_id = 'listings' and auth.uid()::text = (storage.foldername(name))[1]);
+
+-- avatars bucket
+create policy "avatars-bucket: public read"
+  on storage.objects for select using (bucket_id = 'avatars');
+
+create policy "avatars-bucket: owner can upload"
+  on storage.objects for insert to authenticated
+  with check (
+    bucket_id = 'avatars'
+    and auth.uid()::text = (storage.foldername(name))[1]
+  );
+
+create policy "avatars-bucket: owner can update"
+  on storage.objects for update to authenticated
+  using (bucket_id = 'avatars' and auth.uid()::text = (storage.foldername(name))[1]);
+
+create policy "avatars-bucket: owner can delete"
+  on storage.objects for delete to authenticated
+  using (bucket_id = 'avatars' and auth.uid()::text = (storage.foldername(name))[1]);

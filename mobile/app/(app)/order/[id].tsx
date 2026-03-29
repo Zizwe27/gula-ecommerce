@@ -101,7 +101,13 @@ export default function OrderDetailScreen() {
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Confirm',
-          onPress: () => advanceStatus({ orderId: order.id, status: action.next }),
+          onPress: () =>
+            advanceStatus({
+              orderId: order.id,
+              status: action.next,
+              buyerId: order.buyer_id,
+              sellerId: order.seller_id,
+            }),
         },
       ]
     )
@@ -273,7 +279,7 @@ export default function OrderDetailScreen() {
           onPress={() => router.push(`/(app)/chat/${order.id}`)}
           activeOpacity={0.85}
         >
-          <Feather name="message-circle" size={16} color={Colors.textPrimary} />
+          <Feather name="mail" size={16} color={Colors.textPrimary} />
           <Text style={styles.chatBtnText}>Chat with {isSeller ? 'buyer' : 'seller'}</Text>
         </TouchableOpacity>
       )}

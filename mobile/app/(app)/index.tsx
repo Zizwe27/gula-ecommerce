@@ -10,6 +10,7 @@ import {
 } from 'react-native'
 import { useState, useEffect } from 'react'
 import { router } from 'expo-router'
+import { Image } from 'expo-image'
 import { useAuthStore } from '@/stores/auth'
 import { useListings, useCategories, ListingFilters } from '@/hooks/useListings'
 import { ListingCard } from '@/components/listings/ListingCard'
@@ -76,10 +77,18 @@ export default function BrowseScreen() {
         </View>
         <View style={styles.headerActions}>
           <NotificationBell />
-          <TouchableOpacity style={styles.avatarBtn}>
-            <Text style={styles.avatarInitial}>
-              {profile?.display_name?.[0]?.toUpperCase() ?? '?'}
-            </Text>
+          <TouchableOpacity
+            style={styles.avatarBtn}
+            onPress={() => router.push('/(app)/edit-profile')}
+            activeOpacity={0.8}
+          >
+            {profile?.avatar_url ? (
+              <Image source={{ uri: profile.avatar_url }} style={styles.avatarImg} contentFit="cover" />
+            ) : (
+              <Text style={styles.avatarInitial}>
+                {profile?.display_name?.[0]?.toUpperCase() ?? '?'}
+              </Text>
+            )}
           </TouchableOpacity>
         </View>
       </View>
@@ -261,6 +270,12 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.black,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  avatarImg: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
   },
   avatarInitial: {
     fontFamily: Fonts.bold,

@@ -50,10 +50,7 @@ export default function LoginScreen() {
 
       <View style={styles.inner}>
         {/* Wordmark */}
-        <View style={styles.wordmarkRow}>
-          <Text style={styles.wordmark}>gula</Text>
-          <View style={styles.wordmarkDot} />
-        </View>
+        <Text style={styles.wordmark}>gula.</Text>
         <Text style={styles.tagline}>buy and sell with confidence</Text>
 
         <View style={styles.form}>
@@ -108,22 +105,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingBottom: 40,
   },
-  wordmarkRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    marginBottom: 6,
-  },
   wordmark: {
     ...Type.displayLg,
     color: Colors.black,
-  },
-  wordmarkDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: Colors.black,
-    marginLeft: 3,
-    marginBottom: 8,
+    marginBottom: 6,
   },
   tagline: {
     ...Type.bodyMd,

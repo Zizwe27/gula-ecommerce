@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
+import { sendPushNotification } from '@/lib/notifications'
 
 export type OrderStatus =
   | 'pending_payment'
@@ -71,19 +72,66 @@ export function useSellerOrders(sellerId: string | undefined) {
   })
 }
 
+const STATUS_NOTIFICATION: Record<
+  string,
+  { recipientRole: 'buyer' | 'seller'; title: string; body: string }
+> = {
+  pending: {
+    recipientRole: 'buyer',
+    title: 'Payment confirmed',
+    body: 'Your payment has been confirmed. The seller will prepare your order.',
+  },
+  received: {
+    recipientRole: 'buyer',
+    title: 'Order received',
+    body: 'The seller has received your order.',
+  },
+  preparing: {
+    recipientRole: 'buyer',
+    title: 'Order being prepared',
+    body: 'Your order is being prepared.',
+  },
+  delivered: {
+    recipientRole: 'buyer',
+    title: 'Order delivered',
+    body: 'Your order has been marked as delivered. Please confirm receipt.',
+  },
+  completed: {
+    recipientRole: 'seller',
+    title: 'Order completed',
+    body: 'The buyer has confirmed delivery. Order is complete.',
+  },
+}
+
 export function useAdvanceOrderStatus() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async ({ orderId, status }: { orderId: string; status: OrderStatus }) => {
+    mutationFn: async ({
+      orderId,
+      status,
+      buyerId,
+      sellerId,
+    }: {
+      orderId: string
+      status: OrderStatus
+      buyerId: string
+      sellerId: string
+    }) => {
       const { error } = await supabase
         .from('orders')
         .update({ status })
         .eq('id', orderId)
       if (error) throw error
     },
-    onSuccess: (_, { orderId }) => {
+    onSuccess: (_, { orderId, status, buyerId, sellerId }) => {
       queryClient.invalidateQueries({ queryKey: ['order', orderId] })
       queryClient.invalidateQueries({ queryKey: ['orders'] })
+
+      const notif = STATUS_NOTIFICATION[status]
+      if (notif) {
+        const recipientId = notif.recipientRole === 'buyer' ? buyerId : sellerId
+        sendPushNotification({ recipientId, title: notif.title, body: notif.body })
+      }
     },
   })
 }

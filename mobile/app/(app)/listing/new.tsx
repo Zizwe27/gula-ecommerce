@@ -69,7 +69,7 @@ export default function NewListingScreen() {
       : await ImagePicker.requestMediaLibraryPermissionsAsync()
 
     if (!permission.granted) {
-      Alert.alert('Permission required', `Allow Gula to access your ${source === 'camera' ? 'camera' : 'photos'}.`)
+      Alert.alert('Permission required', `Allow gula. to access your ${source === 'camera' ? 'camera' : 'photos'}.`)
       return
     }
 
