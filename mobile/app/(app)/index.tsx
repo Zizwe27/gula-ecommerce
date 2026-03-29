@@ -9,6 +9,7 @@ import {
   Pressable,
 } from 'react-native'
 import { useState, useEffect } from 'react'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { Image } from 'expo-image'
 import { useAuthStore } from '@/stores/auth'
@@ -33,6 +34,7 @@ function useDebounce<T>(value: T, delay = 350): T {
 }
 
 export default function BrowseScreen() {
+  const insets = useSafeAreaInsets()
   const { profile } = useAuthStore()
   const [search, setSearch] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
@@ -62,8 +64,9 @@ export default function BrowseScreen() {
 
   const skeletons = Array.from({ length: 6 })
 
-  const ListHeader = (
-    <View style={styles.header}>
+  const fixedChrome = (
+    <View style={[styles.fixedTop, { paddingTop: insets.top }]}>
+      <View style={styles.header}>
       {/* Top row */}
       <View style={styles.topRow}>
         <View>
@@ -160,6 +163,7 @@ export default function BrowseScreen() {
             : `${listings.length} listing${listings.length !== 1 ? 's' : ''}`}
         </Text>
       )}
+      </View>
     </View>
   )
 
@@ -167,13 +171,15 @@ export default function BrowseScreen() {
     <>
       <StatusBar barStyle="dark-content" backgroundColor={Colors.background} />
 
-      <FlatList
+      <View style={styles.screen}>
+        {fixedChrome}
+        <FlatList
+        style={styles.listScroll}
         data={isLoading ? [] : (listings ?? [])}
         keyExtractor={(item) => item.id}
         numColumns={2}
-        contentContainerStyle={styles.grid}
+        contentContainerStyle={[styles.grid, { flexGrow: 1 }]}
         columnWrapperStyle={styles.row}
-        ListHeaderComponent={ListHeader}
         showsVerticalScrollIndicator={false}
         onRefresh={refetch}
         refreshing={isRefetching}
@@ -196,7 +202,8 @@ export default function BrowseScreen() {
             }
           </View>
         }
-      />
+        />
+      </View>
 
       <FilterSheet
         visible={filterSheetOpen}
@@ -232,9 +239,21 @@ function getTimeOfDay() {
 }
 
 const styles = StyleSheet.create({
-  // Header
-  header: {
+  screen: {
+    flex: 1,
     backgroundColor: Colors.background,
+  },
+  fixedTop: {
+    backgroundColor: Colors.background,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.border,
+    zIndex: 1,
+  },
+  listScroll: {
+    flex: 1,
+  },
+  // Header (fixed — does not scroll with listings)
+  header: {
     paddingBottom: 8,
   },
   topRow: {
@@ -242,7 +261,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     paddingHorizontal: 16,
-    paddingTop: 56,
+    paddingTop: 8,
     paddingBottom: 16,
   },
   greeting: {

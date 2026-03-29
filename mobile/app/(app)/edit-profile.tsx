@@ -16,6 +16,7 @@ import { router } from 'expo-router'
 import { Feather } from '@expo/vector-icons'
 import { Image } from 'expo-image'
 import * as ImagePicker from 'expo-image-picker'
+import { uploadImageToStorage } from '@/lib/uploadImage'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/auth'
@@ -63,16 +64,8 @@ export default function EditProfileScreen() {
       let avatarUrl = profile?.avatar_url ?? null
 
       if (newAvatarUri) {
-        const ext = newAvatarUri.split('.').pop()?.toLowerCase() ?? 'jpg'
-        const path = `${profile!.id}/avatar.${ext}`
-        const response = await fetch(newAvatarUri)
-        const blob = await response.blob()
-        const { error: uploadError } = await supabase.storage
-          .from('avatars')
-          .upload(path, blob, { upsert: true, contentType: `image/${ext}` })
-        if (uploadError) throw uploadError
-        const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path)
-        avatarUrl = publicUrl
+        const path = `${profile!.id}/avatar.jpg`
+        avatarUrl = await uploadImageToStorage(newAvatarUri, 'avatars', path, 400)
       }
 
       const updates: Record<string, string | null> = {

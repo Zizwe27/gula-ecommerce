@@ -16,8 +16,8 @@ import { useState } from 'react'
 import { router } from 'expo-router'
 import { Feather } from '@expo/vector-icons'
 import * as ImagePicker from 'expo-image-picker'
-import * as ImageManipulator from 'expo-image-manipulator'
 import { supabase } from '@/lib/supabase'
+import { uploadImageToStorage } from '@/lib/uploadImage'
 import { useAuthStore } from '@/stores/auth'
 import { useCategories } from '@/hooks/useListings'
 import { Colors } from '@/constants/colors'
@@ -100,23 +100,8 @@ export default function NewListingScreen() {
   const uploadImage = async (uri: string): Promise<string | null> => {
     if (!session?.user) return null
     try {
-      const compressed = await ImageManipulator.manipulateAsync(
-        uri,
-        [{ resize: { width: 1000 } }],
-        { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG }
-      )
-      const response = await fetch(compressed.uri)
-      const arrayBuffer = await response.arrayBuffer()
       const filePath = `${session.user.id}/${Date.now()}_${Math.random().toString(36).slice(2)}.jpg`
-
-      const { error } = await supabase.storage
-        .from('listings')
-        .upload(filePath, arrayBuffer, { contentType: 'image/jpeg' })
-
-      if (error) throw error
-
-      const { data } = supabase.storage.from('listings').getPublicUrl(filePath)
-      return data.publicUrl
+      return await uploadImageToStorage(uri, 'listings', filePath)
     } catch {
       return null
     }

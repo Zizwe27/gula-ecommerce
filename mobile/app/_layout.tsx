@@ -24,7 +24,7 @@ const queryClient = new QueryClient({
 })
 
 export default function RootLayout() {
-  const { setSession, setProfile, fetchProfile, markInitialized } = useAuthStore()
+  const { setSession, setProfile, fetchProfile, markInitialized, loadNotificationSeenAt } = useAuthStore()
 
   const [fontsLoaded] = useFonts({
     Ubuntu_300Light,
@@ -39,6 +39,7 @@ export default function RootLayout() {
       setSession(session)
       if (session?.user) {
         await fetchProfile(session.user.id)
+        await loadNotificationSeenAt()
       }
       markInitialized()
     })

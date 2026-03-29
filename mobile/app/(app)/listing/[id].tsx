@@ -2,6 +2,8 @@ import {
   View,
   Text,
   ScrollView,
+  FlatList,
+  Modal,
   StyleSheet,
   TouchableOpacity,
   Dimensions,
@@ -33,6 +35,7 @@ export default function ListingDetailScreen() {
   const insets = useSafeAreaInsets()
   const queryClient = useQueryClient()
   const [activeImage, setActiveImage] = useState(0)
+  const [lightboxOpen, setLightboxOpen] = useState(false)
   const galleryRef = useRef<ScrollView>(null)
 
   // Seller controls state
@@ -144,14 +147,19 @@ export default function ListingDetailScreen() {
           scrollEventThrottle={16}
         >
           {images.map((uri, i) => (
-            <View key={i} style={styles.gallerySlide}>
+            <TouchableOpacity
+              key={i}
+              style={styles.gallerySlide}
+              onPress={() => { setActiveImage(i); setLightboxOpen(true) }}
+              activeOpacity={0.95}
+            >
               <Image
                 source={uri ? { uri } : require('@/assets/listing-placeholder.png')}
                 style={styles.galleryImage}
                 contentFit="cover"
                 transition={200}
               />
-            </View>
+            </TouchableOpacity>
           ))}
         </ScrollView>
 
@@ -355,6 +363,13 @@ export default function ListingDetailScreen() {
         <Text style={styles.postedDate}>Listed {formatRelativeDate(listing.created_at)}</Text>
       </ScrollView>
 
+      <ImageLightbox
+        images={images.filter((u): u is string => !!u)}
+        initialIndex={activeImage}
+        visible={lightboxOpen}
+        onClose={() => setLightboxOpen(false)}
+      />
+
       {/* Fixed bottom bar — buyers only */}
       {!isOwnListing && (
         <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 16 }]}>
@@ -377,6 +392,152 @@ export default function ListingDetailScreen() {
     </View>
   )
 }
+
+function ImageLightbox({
+  images,
+  initialIndex,
+  visible,
+  onClose,
+}: {
+  images: string[]
+  initialIndex: number
+  visible: boolean
+  onClose: () => void
+}) {
+  const [index, setIndex] = useState(initialIndex)
+  const listRef = useRef<FlatList>(null)
+
+  // Scroll to the tapped image when lightbox opens
+  const handleShow = () => {
+    setIndex(initialIndex)
+    setTimeout(() => {
+      listRef.current?.scrollToIndex({ index: initialIndex, animated: false })
+    }, 50)
+  }
+
+  if (images.length === 0) return null
+
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      statusBarTranslucent
+      onShow={handleShow}
+      onRequestClose={onClose}
+    >
+      <View style={lb.overlay}>
+        {/* Backdrop tap to close */}
+        <TouchableOpacity style={lb.backdrop} activeOpacity={1} onPress={onClose} />
+
+        {/* Card */}
+        <View style={lb.card}>
+          <FlatList
+            ref={listRef}
+            data={images}
+            keyExtractor={(_, i) => String(i)}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            initialScrollIndex={initialIndex}
+            getItemLayout={(_, i) => ({
+              length: LIGHTBOX_WIDTH,
+              offset: LIGHTBOX_WIDTH * i,
+              index: i,
+            })}
+            onMomentumScrollEnd={(e) => {
+              setIndex(Math.round(e.nativeEvent.contentOffset.x / LIGHTBOX_WIDTH))
+            }}
+            renderItem={({ item }) => (
+              <View style={lb.slide}>
+                <Image
+                  source={{ uri: item }}
+                  style={lb.image}
+                  contentFit="contain"
+                  transition={150}
+                />
+              </View>
+            )}
+          />
+
+          {/* Close button */}
+          <TouchableOpacity style={lb.closeBtn} onPress={onClose} activeOpacity={0.8}>
+            <Feather name="x" size={18} color={Colors.white} />
+          </TouchableOpacity>
+
+          {/* Dots */}
+          {images.length > 1 && (
+            <View style={lb.dots}>
+              {images.map((_, i) => (
+                <View key={i} style={[lb.dot, i === index && lb.dotActive]} />
+              ))}
+            </View>
+          )}
+        </View>
+      </View>
+    </Modal>
+  )
+}
+
+const LIGHTBOX_WIDTH = SCREEN_WIDTH * 0.88
+
+const lb = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.82)',
+  },
+  card: {
+    width: LIGHTBOX_WIDTH,
+    height: LIGHTBOX_WIDTH * 1.1,
+    borderRadius: 20,
+    overflow: 'hidden',
+    backgroundColor: '#111',
+  },
+  slide: {
+    width: LIGHTBOX_WIDTH,
+    height: LIGHTBOX_WIDTH * 1.1,
+  },
+  image: {
+    width: '100%',
+    height: '100%',
+  },
+  closeBtn: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dots: {
+    position: 'absolute',
+    bottom: 14,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: 'rgba(255,255,255,0.35)',
+  },
+  dotActive: {
+    backgroundColor: Colors.white,
+    width: 18,
+    borderRadius: 3,
+  },
+})
 
 function LoadingScreen() {
   return (

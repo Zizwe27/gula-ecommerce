@@ -1,7 +1,10 @@
 import { create } from 'zustand'
 import { Session } from '@supabase/supabase-js'
+import * as SecureStore from 'expo-secure-store'
 import { supabase } from '@/lib/supabase'
 import { Profile } from '@/types/database'
+
+const SEEN_AT_KEY = 'notification_seen_at'
 
 interface AuthState {
   session: Session | null
@@ -20,6 +23,7 @@ interface AuthState {
   markInitialized: () => void
   setSellerMode: (mode: boolean) => void
   markNotificationsSeen: () => void
+  loadNotificationSeenAt: () => Promise<void>
   signOut: () => Promise<void>
 }
 
@@ -38,7 +42,18 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   setSellerMode: (mode) => set({ sellerMode: mode }),
 
-  markNotificationsSeen: () => set({ notificationSeenAt: Date.now() }),
+  markNotificationsSeen: () => {
+    const now = Date.now()
+    set({ notificationSeenAt: now })
+    SecureStore.setItemAsync(SEEN_AT_KEY, String(now)).catch(() => {})
+  },
+
+  loadNotificationSeenAt: async () => {
+    try {
+      const stored = await SecureStore.getItemAsync(SEEN_AT_KEY)
+      if (stored) set({ notificationSeenAt: Number(stored) })
+    } catch {}
+  },
 
   fetchProfile: async (userId: string) => {
     const { data } = await supabase
@@ -51,6 +66,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   signOut: async () => {
     await supabase.auth.signOut()
-    set({ session: null, profile: null, sellerMode: false })
+    SecureStore.deleteItemAsync(SEEN_AT_KEY).catch(() => {})
+    set({ session: null, profile: null, sellerMode: false, notificationSeenAt: 0 })
   },
 }))

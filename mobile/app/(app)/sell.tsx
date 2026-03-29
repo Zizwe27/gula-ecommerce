@@ -6,7 +6,9 @@ import {
   ScrollView,
   StatusBar,
   FlatList,
+  ActivityIndicator,
 } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { Feather } from '@expo/vector-icons'
 import { Image } from 'expo-image'
@@ -145,68 +147,80 @@ function ApplicationRejected({ reason }: { reason: string | null }) {
 // ─── Approved seller home ─────────────────────────────────────
 
 function SellerHome({ shopName, sellerId }: { shopName?: string | null; sellerId?: string }) {
+  const insets = useSafeAreaInsets()
   const { data: listings, isLoading, refetch, isRefetching } = useSellerListings(sellerId)
 
   const activeCount = listings?.filter(l => l.status === 'active').length ?? 0
   const soldCount = listings?.filter(l => l.status === 'sold').length ?? 0
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.sellerContent}
-      showsVerticalScrollIndicator={false}
-      onScrollBeginDrag={() => {}} // enables pull-to-refresh feel
-    >
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       <StatusBar barStyle="dark-content" backgroundColor={Colors.background} />
 
-      <View style={styles.sellerHeader}>
-        <View>
-          <Text style={styles.sellerGreeting}>Your shop</Text>
-          <Text style={styles.shopName}>{shopName ?? 'My Shop'}</Text>
-        </View>
-        <View style={styles.verifiedBadge}>
-          <Text style={styles.verifiedText}>Verified</Text>
-        </View>
-      </View>
-
-      <TouchableOpacity
-        style={styles.createButton}
-        activeOpacity={0.85}
-        onPress={() => router.push('/(app)/listing/new')}
-      >
-        <Text style={styles.createButtonText}>+ New listing</Text>
-      </TouchableOpacity>
-
-      <View style={styles.sellerStats}>
-        {[
-          { label: 'Active listings', value: String(activeCount) },
-          { label: 'Sold', value: String(soldCount) },
-        ].map((stat) => (
-          <View key={stat.label} style={styles.statCard}>
-            <Text style={styles.statValue}>{stat.value}</Text>
-            <Text style={styles.statLabel}>{stat.label}</Text>
+      <View style={styles.sellerFixedTop}>
+        <View style={styles.sellerHeader}>
+          <View>
+            <Text style={styles.sellerGreeting}>Your shop</Text>
+            <Text style={styles.shopName}>{shopName ?? 'My Shop'}</Text>
           </View>
-        ))}
-      </View>
-
-      {/* Listings */}
-      {!isLoading && listings?.length === 0 ? (
-        <View style={styles.emptyListings}>
-          <Text style={styles.emptyText}>No listings yet.</Text>
-          <Text style={styles.emptySubtext}>Create your first listing to start selling.</Text>
+          <View style={styles.verifiedBadge}>
+            <Text style={styles.verifiedText}>Verified</Text>
+          </View>
         </View>
-      ) : (
-        <View style={styles.listingsList}>
-          {(listings ?? []).map((listing) => (
-            <SellerListingRow
-              key={listing.id}
-              listing={listing}
-              onPress={() => router.push(`/(app)/listing/${listing.id}`)}
-            />
+
+        <TouchableOpacity
+          style={styles.createButton}
+          activeOpacity={0.85}
+          onPress={() => router.push('/(app)/listing/new')}
+        >
+          <Text style={styles.createButtonText}>+ New listing</Text>
+        </TouchableOpacity>
+
+        <View style={styles.sellerStats}>
+          {[
+            { label: 'Active listings', value: String(activeCount) },
+            { label: 'Sold', value: String(soldCount) },
+          ].map((stat) => (
+            <View key={stat.label} style={styles.statCard}>
+              <Text style={styles.statValue}>{stat.value}</Text>
+              <Text style={styles.statLabel}>{stat.label}</Text>
+            </View>
           ))}
         </View>
+      </View>
+
+      {isLoading ? (
+        <View style={styles.sellerListLoading}>
+          <ActivityIndicator color={Colors.black} />
+        </View>
+      ) : (
+        <FlatList
+          style={styles.sellerListScroll}
+          data={listings ?? []}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={[
+            styles.sellerListContent,
+            (listings?.length ?? 0) === 0 && { flexGrow: 1 },
+          ]}
+          showsVerticalScrollIndicator={false}
+          onRefresh={refetch}
+          refreshing={isRefetching}
+          ItemSeparatorComponent={() => <View style={styles.sellerRowSep} />}
+          ListEmptyComponent={
+            <View style={styles.emptyListings}>
+              <Text style={styles.emptyText}>No listings yet.</Text>
+              <Text style={styles.emptySubtext}>Create your first listing to start selling.</Text>
+            </View>
+          }
+          renderItem={({ item }) => (
+            <SellerListingRow
+              listing={item}
+              onPress={() => router.push(`/(app)/listing/${item.id}`)}
+            />
+          )}
+        />
       )}
-    </ScrollView>
+    </View>
   )
 }
 
@@ -385,6 +399,31 @@ const styles = StyleSheet.create({
     paddingTop: 64,
     gap: 20,
   },
+  sellerFixedTop: {
+    paddingHorizontal: 24,
+    paddingTop: 16,
+    paddingBottom: 16,
+    gap: 20,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.border,
+  },
+  sellerListScroll: {
+    flex: 1,
+  },
+  sellerListContent: {
+    paddingHorizontal: 24,
+    paddingTop: 16,
+    paddingBottom: 120,
+  },
+  sellerListLoading: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sellerRowSep: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: Colors.border,
+  },
   sellerHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -451,6 +490,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border,
     gap: 6,
+    marginTop: 8,
   },
   emptyText: {
     ...Type.bodyLg,

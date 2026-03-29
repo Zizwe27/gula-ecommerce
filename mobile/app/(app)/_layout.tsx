@@ -39,13 +39,13 @@ function TabIcon({
 
 export default function AppLayout() {
   const { session, profile, sellerMode, notificationSeenAt } = useAuthStore()
+  const { data: notifData } = useNotifications(profile?.id, notificationSeenAt)
+  const unreadMessages = notifData?.unreadMessageCount ?? 0
+
   if (!session) return <Redirect href="/(auth)/login" />
 
   const isApprovedSeller = profile?.seller_status === 'approved'
   const showSellTab = isApprovedSeller && sellerMode
-
-  const { data: notifData } = useNotifications(profile?.id, notificationSeenAt)
-  const unreadMessages = notifData?.unreadMessageCount ?? 0
 
   return (
     <>

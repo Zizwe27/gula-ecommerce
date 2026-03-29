@@ -6,6 +6,7 @@ import {
   ScrollView,
   StatusBar,
 } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { Feather } from '@expo/vector-icons'
 import { Image } from 'expo-image'
@@ -15,6 +16,7 @@ import { Colors } from '@/constants/colors'
 import { Fonts, Type } from '@/constants/typography'
 
 export default function ProfileScreen() {
+  const insets = useSafeAreaInsets()
   const { profile, sellerMode, setSellerMode, signOut } = useAuthStore()
 
   const isApprovedSeller = profile?.seller_status === 'approved'
@@ -32,51 +34,52 @@ export default function ProfileScreen() {
   }
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.content}
-      showsVerticalScrollIndicator={false}
-    >
+    <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={Colors.white} />
 
-      <View style={styles.headingRow}>
-        <Text style={styles.heading}>Profile</Text>
-        <NotificationBell />
+      <View style={[styles.profileFixedTop, { paddingTop: insets.top }]}>
+        <View style={styles.headingRow}>
+          <Text style={styles.heading}>Profile</Text>
+          <NotificationBell />
+        </View>
+
+        {isApprovedSeller && (
+          <View style={styles.modeSwitcher}>
+            <TouchableOpacity
+              style={[styles.modeOption, !sellerMode && styles.modeOptionActive]}
+              onPress={() => setSellerMode(false)}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.modeOptionText, !sellerMode && styles.modeOptionTextActive]}>
+                Buying
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.modeOption, sellerMode && styles.modeOptionActive]}
+              onPress={() => setSellerMode(true)}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.modeOptionText, sellerMode && styles.modeOptionTextActive]}>
+                Selling
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {isApprovedSeller && (
+          <Text style={styles.modeHint}>
+            {sellerMode
+              ? 'You are in seller mode. Manage your shop, listings, and incoming orders.'
+              : 'You are in buyer mode. Browse listings and track your purchases.'}
+          </Text>
+        )}
       </View>
 
-      {/* Mode switcher — only for approved sellers */}
-      {isApprovedSeller && (
-        <View style={styles.modeSwitcher}>
-          <TouchableOpacity
-            style={[styles.modeOption, !sellerMode && styles.modeOptionActive]}
-            onPress={() => setSellerMode(false)}
-            activeOpacity={0.8}
-          >
-            <Text style={[styles.modeOptionText, !sellerMode && styles.modeOptionTextActive]}>
-              Buying
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.modeOption, sellerMode && styles.modeOptionActive]}
-            onPress={() => setSellerMode(true)}
-            activeOpacity={0.8}
-          >
-            <Text style={[styles.modeOptionText, sellerMode && styles.modeOptionTextActive]}>
-              Selling
-            </Text>
-          </TouchableOpacity>
-        </View>
-      )}
-
-      {/* Mode description */}
-      {isApprovedSeller && (
-        <Text style={styles.modeHint}>
-          {sellerMode
-            ? 'You are in seller mode. Manage your shop, listings, and incoming orders.'
-            : 'You are in buyer mode. Browse listings and track your purchases.'}
-        </Text>
-      )}
-
+      <ScrollView
+        style={styles.profileScroll}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
       {/* Identity card */}
       <TouchableOpacity
         style={styles.card}
@@ -186,15 +189,13 @@ export default function ProfileScreen() {
 
       <TouchableOpacity
         style={styles.signOut}
-        onPress={async () => {
-          await signOut()
-          router.replace('/(auth)/login')
-        }}
+        onPress={signOut}
         activeOpacity={0.7}
       >
         <Text style={styles.signOutText}>Sign out</Text>
       </TouchableOpacity>
-    </ScrollView>
+      </ScrollView>
+    </View>
   )
 }
 
@@ -203,10 +204,21 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.background,
   },
+  profileFixedTop: {
+    paddingHorizontal: 24,
+    paddingBottom: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.border,
+    backgroundColor: Colors.background,
+  },
+  profileScroll: {
+    flex: 1,
+  },
   content: {
     padding: 24,
-    paddingTop: 64,
+    paddingTop: 16,
     gap: 16,
+    paddingBottom: 120,
   },
   headingRow: {
     flexDirection: 'row',
