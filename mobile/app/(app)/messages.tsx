@@ -13,6 +13,7 @@ import { Feather } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useAuthStore } from '@/stores/auth'
 import { useNotifications, NotificationThread } from '@/hooks/useNotifications'
+import { NotificationBell } from '@/components/ui/NotificationBell'
 import { Colors } from '@/constants/colors'
 import { Fonts, Type } from '@/constants/typography'
 
@@ -36,11 +37,8 @@ export default function MessagesScreen() {
       <StatusBar barStyle="dark-content" backgroundColor={Colors.white} />
 
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} activeOpacity={0.7}>
-          <Feather name="arrow-left" size={22} color={Colors.textPrimary} />
-        </TouchableOpacity>
         <Text style={styles.heading}>Messages</Text>
-        <View style={styles.backBtn} />
+        <NotificationBell />
       </View>
 
       {isLoading ? (
@@ -148,13 +146,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: 20,
+    paddingRight: 12,
+    paddingTop: 16,
+    paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
-  backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  heading: { ...Type.h3, color: Colors.textPrimary },
+  heading: { ...Type.h2, color: Colors.textPrimary },
 
   separator: { height: 1, backgroundColor: Colors.border, marginHorizontal: 20 },
 

@@ -103,6 +103,36 @@ const STATUS_NOTIFICATION: Record<
   },
 }
 
+export function useCancelOrder() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({
+      orderId,
+    }: {
+      orderId: string
+      buyerId: string
+      sellerId: string
+      cancelledBy: 'buyer' | 'seller'
+    }) => {
+      const { error } = await supabase
+        .from('orders')
+        .update({ status: 'cancelled' })
+        .eq('id', orderId)
+      if (error) throw error
+    },
+    onSuccess: (_, { orderId, buyerId, sellerId, cancelledBy }) => {
+      queryClient.invalidateQueries({ queryKey: ['order', orderId] })
+      queryClient.invalidateQueries({ queryKey: ['orders'] })
+      const recipientId = cancelledBy === 'buyer' ? sellerId : buyerId
+      sendPushNotification({
+        recipientId,
+        title: 'Order cancelled',
+        body: 'This order has been cancelled.',
+      })
+    },
+  })
+}
+
 export function useAdvanceOrderStatus() {
   const queryClient = useQueryClient()
   return useMutation({

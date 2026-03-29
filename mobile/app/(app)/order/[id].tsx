@@ -14,7 +14,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/auth'
-import { useAdvanceOrderStatus, OrderStatus } from '@/hooks/useOrders'
+import { useAdvanceOrderStatus, useCancelOrder, OrderStatus } from '@/hooks/useOrders'
 import { Colors } from '@/constants/colors'
 import { Fonts, Type } from '@/constants/typography'
 
@@ -45,6 +45,7 @@ export default function OrderDetailScreen() {
   const insets = useSafeAreaInsets()
   const { profile } = useAuthStore()
   const { mutate: advanceStatus, isPending: advancing } = useAdvanceOrderStatus()
+  const { mutate: cancelOrder, isPending: cancelling } = useCancelOrder()
 
   const { data: order, isLoading } = useQuery({
     queryKey: ['order', id],
@@ -107,6 +108,31 @@ export default function OrderDetailScreen() {
               status: action.next,
               buyerId: order.buyer_id,
               sellerId: order.seller_id,
+            }),
+        },
+      ]
+    )
+  }
+
+  const canCancel =
+    (isBuyer || isSeller) &&
+    (order.status === 'pending_payment' || order.status === 'pending')
+
+  const handleCancel = () => {
+    Alert.alert(
+      'Cancel order',
+      'Are you sure you want to cancel this order? This cannot be undone.',
+      [
+        { text: 'Keep order', style: 'cancel' },
+        {
+          text: 'Cancel order',
+          style: 'destructive',
+          onPress: () =>
+            cancelOrder({
+              orderId: order.id,
+              buyerId: order.buyer_id,
+              sellerId: order.seller_id,
+              cancelledBy: isBuyer ? 'buyer' : 'seller',
             }),
         },
       ]
@@ -270,6 +296,20 @@ export default function OrderDetailScreen() {
             <Text style={styles.infoSub}>{order.payment_reference}</Text>
           ) : null}
         </View>
+        {/* Cancel order */}
+        {canCancel && (
+          <TouchableOpacity
+            style={styles.cancelBtn}
+            onPress={handleCancel}
+            disabled={cancelling || advancing}
+            activeOpacity={0.7}
+          >
+            {cancelling
+              ? <ActivityIndicator color={Colors.error} size="small" />
+              : <Text style={styles.cancelBtnText}>Cancel order</Text>
+            }
+          </TouchableOpacity>
+        )}
       </ScrollView>
 
       {/* Chat button */}
@@ -426,6 +466,23 @@ const styles = StyleSheet.create({
   },
   infoValue: { ...Type.labelLg, color: Colors.textPrimary, fontFamily: Fonts.medium },
   infoSub: { ...Type.bodyMd, color: Colors.textSecondary },
+
+  // Cancel
+  cancelBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: Colors.errorLight,
+    backgroundColor: Colors.errorLight,
+    minHeight: 48,
+  },
+  cancelBtnText: {
+    fontFamily: Fonts.medium,
+    fontSize: 15,
+    color: Colors.error,
+  },
 
   // Chat button
   chatBtn: {
